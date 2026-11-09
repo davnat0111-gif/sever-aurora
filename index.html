@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Север — экспедиции за сиянием</title>
+<meta name="description" content="Полёт над процедурными горами под северным сиянием. Камера летит по маршруту вместе с прокруткой.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Alumni+Sans:wght@500;700;900&family=Golos+Text:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --night:#081226;    /* полярная ночь */
+  --snow:#EAF1FF;
+  --frost:#9DB2D6;
+  --aurora:#5CFFB0;   /* зелёное сияние */
+  --violet:#A98BFF;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--night)}
+body{color:var(--snow);font:400 17px/1.6 "Golos Text",system-ui,sans-serif}
+:focus-visible{outline:2px solid var(--aurora);outline-offset:3px}
+canvas#gl{position:fixed;inset:0;width:100vw;height:100vh;display:block;z-index:0}
+.shade{position:fixed;inset:0;z-index:1;pointer-events:none;background:linear-gradient(90deg,rgba(8,18,38,.72) 0%,rgba(8,18,38,.25) 45%,transparent 70%)}
+header{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;justify-content:space-between;align-items:center;padding:22px clamp(20px,4vw,56px)}
+.logo{font:900 30px/1 "Alumni Sans";letter-spacing:.06em;color:var(--snow);text-decoration:none}
+.alt{font:500 15px "Golos Text";color:var(--frost)}
+.alt b{font:700 22px "Alumni Sans";color:var(--snow);letter-spacing:.03em}
+main{position:relative;z-index:2}
+section{min-height:100vh;padding:16vh clamp(20px,6vw,96px) 10vh;display:flex;flex-direction:column;justify-content:center;max-width:720px}
+h1{font:900 clamp(110px,22vw,330px)/.78 "Alumni Sans";letter-spacing:-.01em;text-transform:uppercase;background:linear-gradient(180deg,#fff 30%,var(--frost));-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{font-size:clamp(18px,1.8vw,22px);max-width:26em;margin-top:24px}
+h2{font:700 clamp(54px,8vw,104px)/.9 "Alumni Sans";text-transform:uppercase;margin-bottom:26px}
+.days{list-style:none;display:grid;gap:4px;counter-reset:d}
+.days li{display:grid;grid-template-columns:76px 1fr;gap:16px;padding:16px 0;border-top:1px solid rgba(157,178,214,.25);counter-increment:d}
+.days li::before{content:"День " counter(d);font:700 20px "Alumni Sans";color:var(--aurora);letter-spacing:.03em;padding-top:2px}
+.days b{display:block;font-weight:500}
+.days span{color:var(--frost);font-size:15px}
+.months{display:grid;gap:12px;margin-top:6px}
+.m{display:grid;grid-template-columns:90px 1fr 48px;align-items:center;gap:14px;font-size:15px}
+.m .bar{height:10px;border-radius:5px;background:rgba(157,178,214,.18);overflow:hidden}
+.m .bar i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,var(--aurora),var(--violet));width:0;transition:width 1.2s cubic-bezier(.2,.7,.2,1)}
+.m b{font:700 20px "Alumni Sans";text-align:right}
+.hint{color:var(--frost);font-size:14px;margin-top:18px}
+form{display:grid;gap:14px;max-width:440px;margin-top:8px}
+label{display:grid;gap:6px;font-size:14px;color:var(--frost)}
+input,select{font:400 17px "Golos Text";color:var(--snow);background:rgba(8,18,38,.6);border:1px solid rgba(157,178,214,.35);border-radius:10px;padding:14px 16px;backdrop-filter:blur(6px)}
+input:focus,select:focus{outline:none;border-color:var(--aurora)}
+[aria-invalid="true"]{border-color:#ff8a8a}
+.err{color:#ffb3b3;font-size:13px;min-height:1em}
+.go{margin-top:6px;padding:18px;border:0;border-radius:10px;background:var(--aurora);color:var(--night);font:700 24px "Alumni Sans";letter-spacing:.04em;text-transform:uppercase;cursor:pointer;transition:box-shadow .3s}
+.go:hover{box-shadow:0 0 40px rgba(92,255,176,.55)}
+.done{display:none;padding:22px;border-radius:12px;border:1px solid var(--aurora);background:rgba(8,18,38,.7);max-width:440px}
+.done b{font:700 30px "Alumni Sans";display:block;margin-bottom:6px;color:var(--aurora)}
+footer{position:relative;z-index:2;color:var(--frost);font-size:13px;padding:0 clamp(20px,6vw,96px) 28px}
+@media (max-width:760px){
+  .shade{background:linear-gradient(0deg,rgba(8,18,38,.85) 0%,rgba(8,18,38,.4) 55%,transparent 80%)}
+  section{justify-content:flex-end;padding-top:40vh}
+  .days li{grid-template-columns:64px 1fr}
+}
+@media (prefers-reduced-motion:reduce){.m .bar i{transition:none}}
+</style>
+<script type="importmap">
+{"imports":{
+  "three":"https://esm.sh/three@0.160.0",
+  "three/addons/":"https://esm.sh/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body>
+<canvas id="gl" aria-hidden="true"></canvas>
+<div class="shade"></div>
+<header>
+  <a class="logo" href="#top">СЕВЕР</a>
+  <div class="alt" aria-hidden="true">высота <b id="alt">0</b> м</div>
+</header>
+
+<main id="top">
+  <section>
+    <h1>Север</h1>
+    <p class="sub">Пять дней за полярным кругом. Горы, тишина и северное сияние, которое видно прямо из окна домика.</p>
+  </section>
+
+  <section>
+    <h2>Маршрут</h2>
+    <ol class="days">
+      <li><div><b>Прилёт и снегоходы</b><span>Встречаем в аэропорту, везём на базу у подножия гор.</span></div></li>
+      <li><div><b>Перевал Ветреный</b><span>Поднимаемся на 900 метров, обед у костра в долине.</span></div></li>
+      <li><div><b>Ночь сияния</b><span>Уходим от огней базы и ждём сияние с горячим чаем.</span></div></li>
+      <li><div><b>Ледяное озеро</b><span>Подлёдная рыбалка и баня с прыжком в снег.</span></div></li>
+      <li><div><b>Возвращение</b><span>Завтрак, фотографии на память, трансфер в аэропорт.</span></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Когда ехать</h2>
+    <div class="months" id="months"></div>
+    <p class="hint">Вероятность увидеть сияние хотя бы одну ночь за поездку, по наблюдениям прошлых лет.</p>
+  </section>
+
+  <section id="book">
+    <h2>Записаться</h2>
+    <form id="form" novalidate>
+      <label>Имя<input name="name" autocomplete="given-name"><span class="err" id="e-name"></span></label>
+      <label>Телефон<input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+7 900 000-00-00"><span class="err" id="e-phone"></span></label>
+      <label>Месяц<select name="month" id="month"></select></label>
+      <button class="go" type="submit">Хочу на Север</button>
+    </form>
+    <div class="done" id="done" role="status" tabindex="-1"><b>Заявка принята</b><span id="doneText"></span></div>
+    <p class="hint">Учебный проект: туроператор вымышленный, заявка никуда не отправляется.</p>
+  </section>
+</main>
+<footer>Three.js: процедурный рельеф, шейдер сияния, снег на GPU, bloom. Сделано с помощью Claude Code.</footer>
+
+<script type="module">
+import * as THREE from 'three';
+import {EffectComposer} from 'three/addons/postprocessing/EffectComposer.js';
+import {RenderPass} from 'three/addons/postprocessing/RenderPass.js';
+import {UnrealBloomPass} from 'three/addons/postprocessing/UnrealBloomPass.js';
+import {OutputPass} from 'three/addons/postprocessing/OutputPass.js';
+import {Reflector} from 'three/addons/objects/Reflector.js';
+
+const mobile = matchMedia('(max-width: 760px)').matches;
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ---------- данные страницы ---------- */
+const MONTHS = [['Сентябрь',48],['Октябрь',66],['Ноябрь',74],['Декабрь',81],['Январь',86],['Февраль',84],['Март',70]];
+document.getElementById('months').innerHTML = MONTHS.map(([m,p])=>`<div class="m"><span>${m}</span><div class="bar"><i data-w="${p}"></i></div><b>${p}%</b></div>`).join('');
+document.getElementById('month').innerHTML = MONTHS.map(([m,p])=>`<option>${m} — ${p}%</option>`).join('');
+const io = new IntersectionObserver(es => es.forEach(e => { if(e.isIntersecting){ e.target.querySelectorAll('i').forEach(i=>i.style.width=i.dataset.w+'%'); io.disconnect(); } }), {threshold:.4});
+io.observe(document.getElementById('months'));
+
+/* ---------- рендер ---------- */
+const canvas = document.getElementById('gl');
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio, mobile ? 1.5 : 1.75));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = .95;
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x0b1830, .008);
+const camera = new THREE.PerspectiveCamera(55, 1, .1, 14000);
+
+/* ---------- шум для рельефа ---------- */
+const P = new Uint8Array(512); { const p=[...Array(256).keys()]; for(let i=255;i>0;i--){const j=(Math.sin(i*91.7)*43758.5453%1+1)%1*(i+1)|0; [p[i],p[j]]=[p[j],p[i]];} for(let i=0;i<512;i++)P[i]=p[i&255]; }
+const fade = t => t*t*t*(t*(t*6-15)+10);
+const grad = (h,x,y) => ((h&1)?-x:x) + ((h&2)?-y:y);
+function perlin(x,y){
+  const X=Math.floor(x)&255, Y=Math.floor(y)&255; x-=Math.floor(x); y-=Math.floor(y);
+  const u=fade(x), v=fade(y), a=P[X]+Y, b=P[X+1]+Y;
+  return THREE.MathUtils.lerp(THREE.MathUtils.lerp(grad(P[a],x,y),grad(P[b],x-1,y),u), THREE.MathUtils.lerp(grad(P[a+1],x,y-1),grad(P[b+1],x-1,y-1),u), v);
+}
+function height(x,z){
+  let h=0, amp=1, f=.022, w=1;
+  for(let o=0;o<6;o++){ const n = 1-Math.abs(perlin(x*f+o*13.1, z*f-o*7.7)); h += n*n*amp*w; w = Math.min(1, n*n*1.6); amp*=.5; f*=2.05; }
+  const d = Math.hypot(x, z*1.25);
+  const island = 1 - THREE.MathUtils.smoothstep(d, 26, 62);
+  return (h*24 - 7) * island - (1-island)*3;
+}
+
+/* ---------- горы ---------- */
+const SIZE = 150, SEG = mobile ? 180 : 320;
+const tg = new THREE.PlaneGeometry(SIZE, SIZE, SEG, SEG); tg.rotateX(-Math.PI/2);
+const pos = tg.attributes.position;
+for(let i=0;i<pos.count;i++) pos.setY(i, height(pos.getX(i), pos.getZ(i)));
+tg.computeVertexNormals();
+const colors = [], snow = new THREE.Color('#eef4ff'), rock = new THREE.Color('#2b3346'), ice = new THREE.Color('#8fb3e0'), tmp = new THREE.Color();
+for(let i=0;i<pos.count;i++){
+  const y = pos.getY(i), ny = tg.attributes.normal.getY(i);
+  const snowy = THREE.MathUtils.smoothstep(ny, .62, .82) * THREE.MathUtils.smoothstep(y, -1, 2);
+  tmp.copy(rock).lerp(snow, snowy);
+  if(y < .6) tmp.lerp(ice, THREE.MathUtils.smoothstep(.6 - y, 0, 1.2) * .6);
+  colors.push(tmp.r, tmp.g, tmp.b);
+}
+tg.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+const terrain = new THREE.Mesh(tg, new THREE.MeshStandardMaterial({vertexColors:true, roughness:.8, metalness:0}));
+scene.add(terrain);
+
+/* свет луны и неба */
+scene.add(new THREE.HemisphereLight(0x5a74b8, 0x0a0f1e, .9));
+const moon = new THREE.DirectionalLight(0xbdd0ff, 1.5); moon.position.set(-40, 50, 30); scene.add(moon);
+const auroraLight = new THREE.DirectionalLight(0x47ffa8, .7); auroraLight.position.set(0, 30, -80); scene.add(auroraLight);
+
+/* ---------- небо с объёмным северным сиянием ----------
+   Сияние считается прямо в шейдере неба: луч проходит через 40 слоёв
+   «занавеса» на разной высоте, в каждом слое — треугольный шум. Так
+   получаются настоящие складки и лучи, которые медленно текут. */
+const SKY = {uTime:{value:0}, uPower:{value:1}};
+const sky = new THREE.Mesh(new THREE.SphereGeometry(6000, 48, 24), new THREE.ShaderMaterial({
+  uniforms:SKY, side:THREE.BackSide, depthWrite:false, fog:false,
+  defines:{ ITER: mobile ? 26 : 44 },
+  vertexShader:`varying vec3 vW; void main(){ vec4 w = modelMatrix*vec4(position,1.0); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }`,
+  fragmentShader:`
+  uniform float uTime, uPower; varying vec3 vW;
+  mat2 rot(float a){ float c=cos(a), s=sin(a); return mat2(c,s,-s,c); }
+  const mat2 M2 = mat2(0.95534, 0.29552, -0.29552, 0.95534);
+  float tri(float x){ return clamp(abs(fract(x)-.5), .01, .49); }
+  vec2 tri2(vec2 p){ return vec2(tri(p.x)+tri(p.y), tri(p.y+tri(p.x))); }
+  float hash(vec2 n){ return fract(sin(dot(n, vec2(12.9898, 4.1414))) * 43758.5453); }
+  float triNoise(vec2 p, float spd){
+    float z = 1.8, z2 = 2.5, rz = 0.;
+    p *= rot(p.x*.06);
+    vec2 bp = p;
+    for(float i=0.; i<5.; i++){
+      vec2 dg = tri2(bp*1.85)*.75;
+      dg *= rot(uTime*spd);
+      p -= dg/z2;
+      bp *= 1.3; z2 *= .45; z *= .42;
+      p *= 1.21 + (rz-1.)*.02;
+      rz += tri(p.x + tri(p.y))*z;
+      p *= -M2;
+    }
+    return clamp(1./pow(rz*29., 1.3), 0., .55);
+  }
+  vec4 aurora(vec3 ro, vec3 rd){
+    vec4 col = vec4(0.), avg = vec4(0.);
+    for(int k=0; k<ITER; k++){
+      float i = float(k) * (44./float(ITER));
+      float of = .006*hash(gl_FragCoord.xy)*smoothstep(0., 15., i);
+      float pt = ((.8 + pow(i, 1.4)*.002) - ro.y) / (rd.y*2. + .4) - of;
+      vec3 bp = ro + pt*rd;
+      float rzt = triNoise(bp.zx, .06);
+      vec4 c2 = vec4(0., 0., 0., rzt);
+      c2.rgb = (sin(1. - vec3(2.15, -.5, 1.2) + i*.043)*.5 + .5) * rzt;
+      avg = mix(avg, c2, .5);
+      col += avg * exp2(-i*.065 - 2.5) * smoothstep(0., 5., i);
+    }
+    col *= clamp(rd.y*15. + .4, 0., 1.);
+    return col * 1.9 * (44./float(ITER));
+  }
+  void main(){
+    vec3 rd = normalize(vW - cameraPosition);
+    float below = step(rd.y, 0.);
+    rd.y = max(abs(rd.y), .002);   // ниже горизонта — зеркальное отражение неба
+    float h = clamp(rd.y, 0., 1.);
+    vec3 c = mix(vec3(.05,.1,.21), vec3(.008,.015,.045), pow(h, .5));
+    c += vec3(.03,.12,.1) * smoothstep(.3, 0., h);
+    {
+      vec3 ro = vec3(0., 0., -6.7) + vec3(cameraPosition.x, 0., cameraPosition.z)*.004;
+      vec4 a = aurora(ro, rd) * uPower * (.25 + .75*smoothstep(.02, .35, rd.y));
+      c = c*(1. - a.a) + a.rgb;
+      c += vec3(.0,.06,.04) * a.a;
+    }
+    gl_FragColor = vec4(c, 1.);
+  }`
+}));
+sky.renderOrder = -1;
+scene.add(sky);
+
+/* звёзды */
+const starG = new THREE.BufferGeometry(), sp = [];
+for(let i=0;i<3000;i++){ const v = new THREE.Vector3().randomDirection(); v.y = Math.abs(v.y)*.95 + .03; v.normalize().multiplyScalar(260); sp.push(v.x, v.y, v.z); }
+starG.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3));
+const stars = new THREE.Points(starG, new THREE.PointsMaterial({color:0xdfe8ff, size:.8, sizeAttenuation:true, fog:false, transparent:true, opacity:.7, depthWrite:false}));
+scene.add(stars);
+
+/* ---------- зеркальное море: в нём отражаются горы и сияние ---------- */
+const sea = new Reflector(new THREE.PlaneGeometry(900, 900), {
+  clipBias:.003, color:0x7d8799,
+  textureWidth: innerWidth * Math.min(devicePixelRatio, 1.5) * (mobile ? .5 : .75),
+  textureHeight: innerHeight * Math.min(devicePixelRatio, 1.5) * (mobile ? .5 : .75)
+});
+sea.rotation.x = -Math.PI/2; sea.position.y = -.35; scene.add(sea);
+
+/* ---------- снег: частицы двигаются в шейдере ---------- */
+const SN = mobile ? 2500 : 6000, snowP = [];
+for(let i=0;i<SN;i++) snowP.push((Math.random()-.5)*60, (Math.random()-.5)*60, (Math.random()-.5)*60);
+const snowG = new THREE.BufferGeometry(); snowG.setAttribute('position', new THREE.Float32BufferAttribute(snowP, 3));
+const SU = {uTime:{value:0}, uCam:{value:new THREE.Vector3()}, uPR:{value:renderer.getPixelRatio()}};
+scene.add(new THREE.Points(snowG, new THREE.ShaderMaterial({
+  uniforms:SU, transparent:true, depthWrite:false,
+  vertexShader:`uniform float uTime, uPR; uniform vec3 uCam;
+    void main(){
+      vec3 p = position;
+      p.y -= uTime*1.6;
+      p.x += sin(uTime*0.7 + position.z) * 0.8;
+      // снег «заворачивается» в куб 60×60×60 вокруг камеры — его всегда хватает
+      p = mod(p - uCam + 30.0, 60.0) - 30.0 + uCam;
+      vec4 mv = modelViewMatrix * vec4(p, 1.0);
+      gl_Position = projectionMatrix * mv;
+      gl_PointSize = min(3.5 * uPR, 5.0 * uPR / -mv.z);
+    }`,
+  fragmentShader:`void main(){ float d = length(gl_PointCoord-0.5); if(d>0.5) discard; gl_FragColor = vec4(vec3(0.8,0.85,0.95), (1.0-d*2.0)*0.45); }`
+})));
+
+/* ---------- маршрут камеры ---------- */
+const path = new THREE.CatmullRomCurve3([
+  new THREE.Vector3(  0, 34,  88),
+  new THREE.Vector3( 36, 26,  44),
+  new THREE.Vector3( 30, 22,   6),
+  new THREE.Vector3(  4, 26, -16),
+  new THREE.Vector3(-24, 22, -30),
+  new THREE.Vector3(-10, 10, -58),
+  new THREE.Vector3( -2,  5, -80),
+], false, 'centripetal');
+const looks = [new THREE.Vector3(0,6,0), new THREE.Vector3(-10,16,-30), new THREE.Vector3(-20,10,-40), new THREE.Vector3(0,40,-220)];
+const lookAt = new THREE.Vector3(), tmpL = new THREE.Vector3();
+
+/* ---------- пост-обработка ---------- */
+const composer = new EffectComposer(renderer);
+composer.addPass(new RenderPass(scene, camera));
+const bloom = new UnrealBloomPass(new THREE.Vector2(1,1), .6, .5, .62);
+composer.addPass(bloom);
+composer.addPass(new OutputPass());
+
+function resize(){
+  const w=innerWidth, h=innerHeight;
+  renderer.setSize(w,h,false); composer.setSize(w,h); bloom.setSize(w,h);
+  camera.aspect = w/h; camera.fov = w/h < 1 ? 70 : 55; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+let target = 0, prog = 0;
+const onScroll = () => { const max = document.documentElement.scrollHeight - innerHeight; target = max > 0 ? Math.min(1, scrollY/max) : 0; };
+addEventListener('scroll', onScroll, {passive:true}); onScroll();
+const mouse = new THREE.Vector2();
+addEventListener('pointermove', e => mouse.set(e.clientX/innerWidth-.5, e.clientY/innerHeight-.5));
+
+const altEl = document.getElementById('alt');
+let camY = null;
+const clock = new THREE.Clock();
+function frame(){
+  const dt = Math.min(clock.getDelta(), .25), t = reduce ? 0 : clock.elapsedTime;
+  prog += (target - prog) * (reduce ? 1 : Math.min(1, dt*2));
+  SKY.uTime.value = t*1.3; SU.uTime.value = t;
+  SKY.uPower.value = 1 - THREE.MathUtils.smoothstep(prog, .6, 1) * .25;
+  sky.position.copy(camera.position); stars.position.copy(camera.position);
+
+  const p = path.getPointAt(Math.min(.999, prog));
+  p.y += Math.sin(t*.4)*.4;
+  // не даём камере врезаться в склон: держим её минимум в 7 м над рельефом рядом
+  let ground = -1;
+  for(const [dx,dz] of [[0,0],[3,0],[-3,0],[0,3],[0,-3]]) ground = Math.max(ground, height(p.x+dx, p.z+dz));
+  camY += (Math.max(p.y, ground + 7) - camY) * (camY === null ? 1 : Math.min(1, dt*4));
+  p.y = camY;
+  camera.position.copy(p);
+  // плавно переводим взгляд по точкам интереса
+  const lf = prog * (looks.length-1), li = Math.min(looks.length-2, Math.floor(lf));
+  tmpL.copy(looks[li]).lerp(looks[li+1], THREE.MathUtils.smoothstep(lf-li, 0, 1));
+  tmpL.x += mouse.x*6; tmpL.y -= mouse.y*4;
+  lookAt.lerp(tmpL, lookAt.lengthSq() ? Math.min(1, dt*3) : 1);
+  camera.lookAt(lookAt);
+  SU.uCam.value.copy(camera.position);
+  altEl.textContent = Math.round(camera.position.y * 38).toLocaleString('ru-RU');
+
+  composer.render();
+  requestAnimationFrame(frame);
+}
+frame();
+
+/* ---------- форма ---------- */
+const form = document.getElementById('form');
+form.addEventListener('submit', e => {
+  e.preventDefault();
+  let ok = true;
+  const set = (el,id,msg) => { el.setAttribute('aria-invalid', !!msg); document.getElementById(id).textContent = msg||''; if(msg) ok=false; };
+  set(form.name, 'e-name', form.name.value.trim() ? '' : 'Напишите, как к вам обращаться');
+  const d = form.phone.value.replace(/\D/g,'');
+  set(form.phone, 'e-phone', d.length>=10 && d.length<=12 ? '' : 'Проверьте номер: нужно 10–11 цифр');
+  if(!ok){ form.querySelector('[aria-invalid="true"]').focus(); return; }
+  document.getElementById('doneText').textContent = `${form.name.value.trim()}, перезвоним на ${form.phone.value} и подберём даты: ${form.month.value.split(' —')[0].toLowerCase()}.`;
+  form.style.display='none'; const done=document.getElementById('done'); done.style.display='block'; done.focus();
+});
+</script>
+</body>
+</html>
